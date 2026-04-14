@@ -101,11 +101,17 @@ class Recorder:
         self.audio_chunks = []
         self.current_level = 0.0
         self.is_recording = True
-        self.stream = sd.InputStream(
-            samplerate=SAMPLE_RATE, channels=CHANNELS,
-            dtype="int16", callback=self._callback, blocksize=1024,
-        )
-        self.stream.start()
+        log.info("[RECORDER] Opening audio stream...")
+        try:
+            self.stream = sd.InputStream(
+                samplerate=SAMPLE_RATE, channels=CHANNELS,
+                dtype="int16", callback=self._callback, blocksize=1024,
+            )
+            self.stream.start()
+            log.info("[RECORDER] Audio stream active")
+        except Exception as e:
+            log.error(f"[RECORDER] FAILED to open stream: {e}")
+            self.is_recording = False
 
     def _callback(self, indata, frames, time_info, status):
         if self.is_recording:
@@ -115,14 +121,20 @@ class Recorder:
 
     def stop(self):
         self.is_recording = False
+        log.info("[RECORDER] Stopping stream...")
         if self.stream:
-            self.stream.stop()
-            self.stream.close()
+            try:
+                self.stream.stop()
+                self.stream.close()
+            except Exception as e:
+                log.error(f"[RECORDER] Error closing stream: {e}")
             self.stream = None
         if not self.audio_chunks:
+            log.info("[RECORDER] No audio chunks captured")
             return None, 0.0
         audio = np.concatenate(self.audio_chunks, axis=0)
         duration = len(audio) / SAMPLE_RATE
+        log.info(f"[RECORDER] Captured {len(self.audio_chunks)} chunks, {duration:.1f}s")
         stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         path = os.path.join(AUDIO_DIR, f"{stamp}.wav")
         with wave.open(path, "wb") as wf:
@@ -130,6 +142,7 @@ class Recorder:
             wf.setsampwidth(2)
             wf.setframerate(SAMPLE_RATE)
             wf.writeframes(audio.tobytes())
+        log.info(f"[RECORDER] Saved: {path}")
         return path, duration
 
 
@@ -277,6 +290,7 @@ class KairaWidget(QWidget):
     def showEvent(self, event):
         """Nuke all DWM decorations after the native window handle exists."""
         super().showEvent(event)
+        log.info(f"[UI] showEvent fired, winId={int(self.winId())}")
         try:
             import ctypes
             import ctypes.wintypes
@@ -314,7 +328,9 @@ class KairaWidget(QWidget):
     # --- State machine ---
 
     def _set_state(self, state):
+        prev = self._state
         self._state = state
+        log.info(f"[STATE] {prev} -> {state}")
         targets = {
             IDLE: self.IDLE_W,
             RECORDING: self.REC_W,
@@ -325,11 +341,14 @@ class KairaWidget(QWidget):
 
     def toggle_dictation(self):
         """Thread-safe toggle via signal."""
+        log.info(f"[TOGGLE] Triggered (current state: {self._state})")
         if self._state in (IDLE, "hover"):
             self.state_changed.emit(RECORDING)
             self._start_recording()
         elif self._state == RECORDING:
             self._stop_recording()
+        else:
+            log.info(f"[TOGGLE] Ignored — busy ({self._state})")
 
     def _start_recording(self):
         self._bar_levels = [0.0] * 20
@@ -497,12 +516,12 @@ class KairaWidget(QWidget):
         color = QColor(255, 68, 0, alpha)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QBrush(color))
-        p.drawEllipse(QPointF(pill_x + 12, cy), 3.5, 3.5)
+        p.drawEllipse(QPointF(pill_x + 14, cy), 3.5, 3.5)
 
     def _draw_waveform(self, p, pill_x, pill_w, pill_y, pill_h):
         bar_count = len(self._bar_levels)
-        bar_area_start = pill_x + 22
-        bar_area_end = pill_x + pill_w - 8
+        bar_area_start = pill_x + 28
+        bar_area_end = pill_x + pill_w - 12
         bar_area = bar_area_end - bar_area_start
         if bar_area <= 0:
             return
@@ -586,13 +605,14 @@ def setup_hotkeys(widget):
             pynput_kb.Key.shift_l, pynput_kb.Key.shift_r, pynput_kb.Key.shift))
 
         if ctrl and win:
+            log.info("[HOTKEY] Ctrl+Win pressed")
             widget.toggle_dictation()
 
         if ctrl and shift:
             vk = getattr(key, 'vk', None)
             char = getattr(key, 'char', None)
             if vk == 81 or (char and char.lower() == 'q'):
-                log.info("[QUIT] Shutting down.")
+                log.info("[QUIT] Ctrl+Shift+Q — shutting down.")
                 os._exit(0)
 
     def on_release(key):
@@ -608,22 +628,30 @@ def setup_hotkeys(widget):
 # ============================================================
 
 def main():
+    log.info("[BOOT] Kaira starting...")
+    log.info(f"[BOOT] Python: {sys.executable}")
+    log.info(f"[BOOT] PID: {os.getpid()}")
+    log.info(f"[BOOT] CWD: {os.getcwd()}")
+
     lock = acquire_single_instance_lock()
     if lock is None:
-        log.warning("Another Kaira instance is already running. Exiting.")
+        log.warning("[BOOT] BLOCKED — another instance holds the lock. Exiting.")
         return
+    log.info("[BOOT] Single-instance lock acquired")
     main._lock = lock
 
     if not os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY") == "your-key-here":
-        log.error("No API key. Set OPENAI_API_KEY in .env file.")
+        log.error("[BOOT] FATAL — no API key. Set OPENAI_API_KEY in .env file.")
         return
+    log.info("[BOOT] API key loaded")
 
     try:
         default_input = sd.query_devices(kind="input")
         mic_name = default_input["name"]
     except Exception as e:
-        log.error(f"No microphone found: {e}")
+        log.error(f"[BOOT] FATAL — no microphone found: {e}")
         return
+    log.info(f"[BOOT] Mic OK: {mic_name}")
 
     log.info("=" * 48)
     log.info("  Kaira -- Voice Dictation Tool (PyQt6)")
@@ -636,16 +664,37 @@ def main():
     log.info("=" * 48)
     cleanup_old_audio()
 
+    log.info("[BOOT] Creating QApplication...")
     app = QApplication(sys.argv)
+
+    log.info("[BOOT] Creating widget...")
     widget = KairaWidget()
     widget.show()
 
-    log.info(f"Widget pos: ({widget.x()}, {widget.y()})")
-    log.info("Ready. Waiting for Ctrl+Win...")
+    screen = app.primaryScreen().availableGeometry()
+    log.info(f"[BOOT] Screen: {screen.width()}x{screen.height()} at ({screen.x()},{screen.y()})")
+    log.info(f"[BOOT] Widget pos: ({widget.x()}, {widget.y()}) size: {widget.width()}x{widget.height()}")
+    log.info(f"[BOOT] Widget visible: {widget.isVisible()}")
+    log.info("[BOOT] Ready. Waiting for Ctrl+Win...")
 
     setup_hotkeys(widget)
-    sys.exit(app.exec())
+    log.info("[BOOT] Hotkey listener started")
+
+    exit_code = app.exec()
+    log.info(f"[SHUTDOWN] Qt event loop ended with code {exit_code}")
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
-    main()
+    # Catch any unhandled crash so it always hits the log
+    def _crash_handler(exc_type, exc_value, exc_tb):
+        import traceback
+        tb = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        log.error(f"[CRASH] Unhandled exception:\n{tb}")
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+    sys.excepthook = _crash_handler
+
+    try:
+        main()
+    except Exception as e:
+        log.error(f"[CRASH] Fatal: {e}", exc_info=True)
