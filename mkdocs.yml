@@ -1,0 +1,105 @@
+site_name: Embr Voice
+site_description: Voice dictation for any Windows app. Free, open source, BYOK.
+site_author: Billy Wellington / Intellium Inc.
+site_url: https://billywellington.github.io/embr-voice/
+
+repo_name: billywellington/embr-voice
+repo_url: https://github.com/billywellington/embr-voice
+edit_uri: edit/main/docs/
+
+# --- Theme ---------------------------------------------------------------
+theme:
+  name: material
+  favicon: embr-logo.ico
+  logo: embr-logo.ico
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.action.edit
+    - content.code.copy
+    - toc.follow
+  palette:
+    # Light mode (primary)
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+extra_css:
+  - stylesheets/embr.css
+
+# --- Navigation ----------------------------------------------------------
+nav:
+  - Home: index.md
+  - Get started:
+      - Install: install.md
+      - Add your OpenAI key: api-key.md
+      - First dictation: first-dictation.md
+  - Using Embr:
+      - Hotkeys: hotkeys.md
+      - Pause and resume: pause-resume.md
+      - Settings: settings.md
+  - Help:
+      - Troubleshooting: troubleshooting.md
+      - FAQ: faq.md
+  - About:
+      - Changelog: changelog.md
+      - License: license.md
+
+# --- Markdown extensions -------------------------------------------------
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Link to this section
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+# --- Extras --------------------------------------------------------------
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/embr-voice/embr
+      name: GitHub
+    - icon: fontawesome/solid/message
+      link: https://github.com/embr-voice/embr/discussions
+      name: GitHub Discussions
+
+copyright: Copyright &copy; 2026 Embr Voice
+
+# --- Plugins -------------------------------------------------------------
+plugins:
+  - search

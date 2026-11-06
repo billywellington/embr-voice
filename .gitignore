@@ -7,4 +7,6 @@ logs/
 *.wav
 dist/
 build/
-*.spec
+blogs/
+kaira.lock
+

@@ -1,0 +1,106 @@
+
+It costs me $0.10/month. It's open source. Here's how I built it.
+
+---
+
+I loved Wispr Flow. For 14 days, it was exactly what I needed. Press a hotkey, speak, and my words appeared wherever my cursor was. No switching apps. No typing. Just talking.
+
+Then the trial ended.
+
+The free tier limits you to 2,000 words per week. The Pro plan? $15/month. Aqua Voice is $10/month. Dragon is $15/month or $699 for a one-time desktop license.
+
+I'm a developer in Cape Town, South Africa. $15/month is R250. For something that's essentially one API call to OpenAI.
+
+So I looked at what these tools actually do under the hood: they record your microphone, send the audio to a speech-to-text model, and paste the result. That's it. The UI is nice, but the core functionality is three steps.
+
+OpenAI's Whisper API charges $0.006 per minute of audio. That's $0.36 per hour. A full month of casual dictation (a few minutes a day) costs about $0.10.
+
+So, I decided to build my own.
+
+What I Built
+
+Kaira is a free, open-source voice dictation tool for Windows. It does exactly what Wispr Flow, Aqua Voice and Dragon does:
+
+- Press Ctrl+Win to start recording
+- Speak naturally
+- Press Ctrl+Win again to stop
+- Your words get transcribed and pasted into whatever app is focused
+
+There's a small floating widget that sits above your taskbar. It's a circle when idle, expands into a pill when you hover (showing the hotkey hint), shows a live waveform while recording, and displays a spinner while transcribing. You can also click the widget to start and stop.
+
+[INSERT SCREENSHOTS HERE]
+
+The whole thing is one Python file. About 600 lines of code.
+
+
+The Real Cost
+
+Here's what voice dictation actually costs:
+
+Wispr Flow Pro: $15/month (or $12/month if you pay annually)
+Aqua Voice Pro: $10/month (or $8/month annually)
+Dragon Anywhere: $15/month (cloud) or $699 one-time (desktop)
+Kaira: whatever you spend on the Whisper API
+
+And here's what Kaira costs depending on how much you use it:
+
+Casual use (a few minutes/day): about $0.10/month
+Regular use (10 minutes/day): about $1.80/month
+Heavy use (30 minutes/day): about $5.00/month
+
+Even at heavy daily use, Kaira could costs less than half of the cheapest subscription alternative. At casual use, it's basically free.
+
+
+The Hardest Part Wasn't the AI
+
+The transcription was the easy part. OpenAI's Python SDK, ten lines of code, done.
+
+The hard part was the floating overlay widget.
+
+I wanted a small, transparent pill that floats above the taskbar. Sounds simple. It was not.
+
+My laptop has Intel UHD integrated graphics on Windows 11, and there's a known bug in Windows' DWM compositor that breaks transparent overlays on this hardware. I went through three different frameworks before finding one that worked:
+
+Tkinter's transparency made the widget completely invisible. pywebview showed a white rectangle instead of a transparent one. The .NET WebView2 runtime crashed when I tried to hide the taskbar entry.
+
+I finally landed on PyQt6 with QPainter, which uses a completely different compositing path (DWM per-pixel alpha instead of color-key transparency). It works. No white boxes, no invisible widgets, no taskbar entries.
+
+That debugging journey is a story on its own, and I'll write it up in a follow-up post.
+
+
+Try It
+
+Kaira is open source under the MIT license. You can get it in two ways:
+
+For developers:
+git clone https://github.com/billywellington/kaira.git
+cd kaira
+pip install -r requirements.txt
+cp .env.example .env
+(add your OpenAI API key to .env)
+python voice_dictation.py
+
+For everyone else:
+Download kaira.exe from the Releases page (https://github.com/billywellington/kaira/releases), create a .env file with your API key next to it, and double-click.
+
+Setup takes about two minutes.
+
+
+What's Next
+
+Kaira works on Windows right now. Here's what's coming:
+
+- Mac and Linux support (the backend is already cross-platform, just the overlay needs platform-specific fixes)
+- Offline mode using a local Whisper model (no API key needed)
+- Hold-to-talk mode
+- Auto-update from GitHub releases
+
+I'm also writing a series of posts breaking down the technical challenges:
+
+- The Intel UHD transparency bug that made three frameworks fail
+- How PyQt6's DWM compositing actually works under the hood
+- The full API cost breakdown and why voice dictation subscriptions are overpriced
+
+If you're paying for voice dictation, you don't have to. Star the repo, try it out, and open an issue if something breaks.
+
+GitHub: https://github.com/billywellington/kaira

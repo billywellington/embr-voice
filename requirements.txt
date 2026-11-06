@@ -4,4 +4,12 @@ numpy
 pynput
 python-dotenv
 pyperclip
-PyQt6
+keyring
+# v1.2 additions
+silero-vad-lite     # ONNX VAD, zero Python deps, ~2MB — hallucination guard
+tenacity            # exponential backoff for OpenAI Whisper retries
+# v1.2.0 local fallback (faster-whisper on CPU when cloud Whisper fails)
+faster-whisper>=1.0.3
+ctranslate2>=4.4.0,<5.0   # CTranslate2 4.x broke faster-whisper in Oct 2024 — stay on 4.x
+# faster-whisper transitively pulls in: tokenizers, huggingface_hub,
+# requests, av, onnxruntime. Explicit pins only for the ones we directly care about.
